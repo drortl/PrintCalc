@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>מחשבון הדפסה A1</title>
+<style>
+/* Layout: single column calculator — material switch, inputs, live result card, settings drawer */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --fg:#1d2624; --muted:#5d6b67; --line:#d9e0dd;
+  --accent:#c2580e; --accent-soft:#fbe9dc; --ok:#1f6b52; --ok-soft:#dff0e8;
+  --display:"Secular One","Assistant",system-ui,sans-serif;
+  --body:"Assistant",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a19; --surface:#1d2523; --fg:#e7eeeb; --muted:#9aaba6; --line:#2f3b38;
+  --accent:#f08a43; --accent-soft:#3a2617; --ok:#5cc79c; --ok-soft:#173027; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a19; --surface:#1d2523; --fg:#e7eeeb; --muted:#9aaba6; --line:#2f3b38;
+  --accent:#f08a43; --accent-soft:#3a2617; --ok:#5cc79c; --ok-soft:#173027; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:16px}
+header h1{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;text-wrap:balance}
+header p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px;gap:4px}
+.seg button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600;min-width:0}
+input{font:inherit;font-size:1.1rem;font-variant-numeric:tabular-nums;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);width:100%}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tot{border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.tot.cost{background:var(--bg);border:1px solid var(--line)}
+.tot.price{background:var(--ok-soft);color:var(--ok)}
+.tot .k{font-size:.8rem;font-weight:700;letter-spacing:.02em}
+.tot .v{font-family:var(--display);font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.tot .u{font-size:.85rem;opacity:.85;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.95rem}
+td{padding:7px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:left}
+tr.sum td{font-weight:700;border-bottom:0}
+details summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between}
+details summary::after{content:"＋";color:var(--accent)}
+details[open] summary::after{content:"−"}
+.hint{font-size:.8rem;color:var(--muted);margin:0}
+.btn{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:10px;cursor:pointer}
+@media (max-width:360px){.grid,.totals{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap" dir="rtl">
+  <header>
+    <h1>מחשבון הדפסה A1</h1>
+    <p>תמחור חלק לפי משקל, זמן הדפסה וכמות</p>
+  </header>
+
+  <section class="panel">
+    <div class="seg" role="group" aria-label="חומר">
+      <button id="m-pla" type="button" aria-pressed="true" data-m="pla">PLA</button>
+      <button id="m-petg" type="button" aria-pressed="false" data-m="petg">PETG</button>
+    </div>
+    <div class="grid">
+      <label>משקל לחלק (גרם)<input id="weight" type="number" inputmode="decimal" min="0" step="any" value="50"></label>
+      <label>זמן הדפסה לחלק (שעות)<input id="hours" type="number" inputmode="decimal" min="0" step="any" value="3"></label>
+      <label>כמות<input id="qty" type="number" inputmode="numeric" min="1" step="1" value="1"></label>
+      <label>זמן עבודה להזמנה (דק')<input id="labor" type="number" inputmode="numeric" min="0" step="1" value="15"></label>
+    </div>
+    <p class="hint">משקל וזמן הדפסה לוקחים מ-Bambu Studio אחרי slice.</p>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div class="totals">
+      <div class="tot cost"><span class="k">ללא רווח</span><span class="v" id="t-cost">0</span><span class="u" id="u-cost"></span></div>
+      <div class="tot price"><span class="k" id="k-price">עם רווח</span><span class="v" id="t-price">0</span><span class="u" id="u-price"></span></div>
+    </div>
+    <table>
+      <tbody>
+        <tr><td>חומר</td><td id="r-mat"></td></tr>
+        <tr><td>חשמל</td><td id="r-elec"></td></tr>
+        <tr><td>בלאי מדפסת</td><td id="r-wear"></td></tr>
+        <tr><td id="r-fail-k">תוספת כשלים</td><td id="r-fail"></td></tr>
+        <tr><td>עבודה</td><td id="r-lab"></td></tr>
+        <tr class="sum"><td>סה"כ עלות</td><td id="r-sum"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <details class="panel" id="settings">
+    <summary>הגדרות מחירים</summary>
+    <div class="grid">
+      <label>גליל PLA (₪)<input id="s-pla" type="number" inputmode="decimal" step="any" value="80"></label>
+      <label>גליל PETG (₪)<input id="s-petg" type="number" inputmode="decimal" step="any" value="90"></label>
+      <label>משקל גליל (גרם)<input id="s-spool" type="number" inputmode="numeric" step="any" value="1000"></label>
+      <label>חשמל (₪ לקוט"ש)<input id="s-tariff" type="number" inputmode="decimal" step="any" value="0.64"></label>
+      <label>הספק מדפסת (קילוואט)<input id="s-kw" type="number" inputmode="decimal" step="any" value="0.1"></label>
+      <label>בלאי לשעה (₪)<input id="s-wear" type="number" inputmode="decimal" step="any" value="0.7"></label>
+      <label>תוספת כשלים (%)<input id="s-fail" type="number" inputmode="decimal" step="any" value="15"></label>
+      <label>תעריף עבודה (₪ לשעה)<input id="s-rate" type="number" inputmode="decimal" step="any" value="100"></label>
+      <label>אחוז רווח (%)<input id="s-profit" type="number" inputmode="decimal" step="any" value="30"></label>
+    </div>
+    <p class="hint">ההגדרות נשמרות במכשיר. הערכים ההתחלתיים הם הערכות; כדאי לעדכן למחירים שלך.</p>
+    <button class="btn" id="reset" type="button">החזר לברירת מחדל</button>
+  </details>
+</div>
+
+<script>
+(function(){
+  var KEY="a1-print-calc-v1";
+  var ids=["weight","hours","qty","labor","s-pla","s-petg","s-spool","s-tariff","s-kw","s-wear","s-fail","s-rate","s-profit"];
+  var defaults={}; ids.forEach(function(i){defaults[i]=document.getElementById(i).value});
+  var material="pla";
+  var $=function(i){return document.getElementById(i)};
+  var num=function(i){var v=parseFloat($(i).value);return isFinite(v)?v:0};
+  var fmt=new Intl.NumberFormat("he-IL",{minimumFractionDigits:2,maximumFractionDigits:2});
+  var ils=function(v){return fmt.format(v)+" ₪"};
+
+  function setMaterial(m){
+    material=m;
+    document.querySelectorAll(".seg button").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.m===m?"true":"false")});
+  }
+  function calc(){
+    var qty=Math.max(1,Math.round(num("qty")));
+    var spool=num("s-spool")||1000;
+    var perGram=num(material==="pla"?"s-pla":"s-petg")/spool;
+    var mat=num("weight")*qty*perGram;
+    var h=num("hours")*qty;
+    var elec=h*num("s-kw")*num("s-tariff");
+    var wear=h*num("s-wear");
+    var fail=(mat+elec+wear)*num("s-fail")/100;
+    var lab=num("labor")/60*num("s-rate");
+    var cost=mat+elec+wear+fail+lab;
+    var price=cost*(1+num("s-profit")/100);
+    $("r-mat").textContent=ils(mat);$("r-elec").textContent=ils(elec);$("r-wear").textContent=ils(wear);
+    $("r-fail").textContent=ils(fail);$("r-lab").textContent=ils(lab);$("r-sum").textContent=ils(cost);
+    $("r-fail-k").textContent="תוספת כשלים ("+num("s-fail")+"%)";
+    $("t-cost").textContent=ils(cost);$("t-price").textContent=ils(price);
+    $("k-price").textContent="עם רווח ("+num("s-profit")+"%)";
+    $("u-cost").textContent=qty>1?ils(cost/qty)+" ליחידה":"";
+    $("u-price").textContent=qty>1?ils(price/qty)+" ליחידה":"";
+  }
+  function save(){
+    try{var o={material:material};ids.forEach(function(i){o[i]=$(i).value});localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}
+  }
+  function load(){
+    try{var o=JSON.parse(localStorage.getItem(KEY)||"null");if(!o)return;
+      ids.forEach(function(i){if(o[i]!=null)$(i).value=o[i]});if(o.material)setMaterial(o.material)}catch(e){}
+  }
+  ids.forEach(function(i){$(i).addEventListener("input",function(){calc();save()})});
+  document.querySelectorAll(".seg button").forEach(function(b){b.addEventListener("click",function(){setMaterial(b.dataset.m);calc();save()})});
+  $("reset").addEventListener("click",function(){ids.forEach(function(i){if(i.indexOf("s-")===0)$(i).value=defaults[i]});calc();save()});
+  load();calc();
+})();
+</script>
+</body>
+</html>
