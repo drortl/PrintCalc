@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -27,3 +30,15 @@ jobs:
         with:
           name: PrintCalc-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk PrintCalc.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: PrintCalc v1.0.${{ github.run_number }}
+          body: מחשבון תמחור הדפסות ל-Bambu Lab A1. להורדה – PrintCalc.apk
+          files: PrintCalc.apk
+          make_latest: true
